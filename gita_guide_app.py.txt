@@ -1,0 +1,62 @@
+import pandas as pd
+import streamlit as st
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load the dataset
+@st.cache_data
+def load_data():
+    df = pd.read_csv("gita_dataset.csv")
+    df.dropna(inplace=True)
+    return df
+
+df = load_data()
+
+# TF-IDF Vectorization
+tfidf = TfidfVectorizer(stop_words='english')
+tfidf_matrix = tfidf.fit_transform(df['Themes'])
+
+# Recommendation function
+def recommend(query):
+    query_vec = tfidf.transform([query])
+    similarity = cosine_similarity(query_vec, tfidf_matrix).flatten()
+    top_index = similarity.argmax()
+    verse = df.iloc[top_index]
+    return {
+        'chapter': verse['Chapter'],
+        'verse_no': verse['Verse'],
+        'sanskrit': verse['Sanskrit'],
+        'translation': verse['English Translation'],
+        'summary': verse['Summary']
+    }
+
+# Chatbot Logic – accepts any user query
+def chatbot_response(user_input):
+    user_input = user_input.strip()
+    if not user_input:
+        return {
+            'chapter': '',
+            'verse_no': '',
+            'sanskrit': '',
+            'translation': '',
+            'summary': 'Please type a question like: "I feel anxious" or "What is the power of knowledge?"'
+        }
+    return recommend(user_input)
+
+# Streamlit UI
+st.set_page_config(page_title="🕉️ GitaGuide", page_icon="📖")
+st.title("🕉️ GitaGuide: Chatbot for Spiritual Guidance")
+st.markdown("Ask your life questions and receive divine wisdom from the Bhagavad Gita. 🙏")
+
+user_input = st.text_input("🧘 What's on your mind?", placeholder="e.g., I want to stop overthinking")
+
+if st.button("Get Gita Wisdom"):
+    result = chatbot_response(user_input)
+
+    if result['chapter']:
+        st.markdown(f"### 📖 Chapter {result['chapter']}, Verse {result['verse_no']}")
+        st.markdown(f"**🗣️ Sanskrit:** {result['sanskrit']}")
+        st.markdown(f"**🌍 Translation:** {result['translation']}")
+        st.markdown(f"**💡 Insight:** {result['summary']}")
+    else:
+        st.info(result['summary'])
